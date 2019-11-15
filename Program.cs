@@ -95,7 +95,8 @@ namespace HarvestBrowserPasswords
         {
             foreach (string profile in FindFirefoxProfiles(userAccountName))
             {
-
+                new FirefoxDatabaseDecryptor(profile);
+                //decryptor.GetSQLiteLogins();
             }
         }
 
@@ -105,25 +106,15 @@ namespace HarvestBrowserPasswords
             //List to store profile directories
             List<string> profileDirectories = new List<string>();
 
+            //Roaming directory contains most firefox artifacts apart from cache
             string roamingDir = $"C:\\Users\\{userAccountName}\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles";
-            string localDir = $"C:\\Users\\{userAccountName}\\AppData\\Local\\Mozilla\\Firefox\\Profiles";
 
             //Check roaming profile
             if (Directory.Exists(roamingDir))
             {
+
                 string[] roamingProfiles = Directory.GetDirectories(roamingDir);
                 foreach (string directory in roamingProfiles)
-                {
-                    profileDirectories.Add(directory);
-                    Console.WriteLine($"[+] Found Firefox Profile at {directory}");
-                }
-            }
-
-            //Check local profile
-            if (Directory.Exists(localDir))
-            {
-                string[] localDirectories = Directory.GetDirectories(localDir);
-                foreach (string directory in localDirectories)
                 {
                     profileDirectories.Add(directory);
                     Console.WriteLine($"[+] Found Firefox Profile at {directory}");
@@ -157,6 +148,7 @@ namespace HarvestBrowserPasswords
             Console.WriteLine($"-f    Firefox             extract Firefox passwords");
             Console.WriteLine($"-a    All Browsers        extract passwords from all browsers");
             Console.WriteLine($"-v    Verbose             write verbose output to console");
+            Console.WriteLine($"-c    CSV                 write output to csv file");
         }
     }  
 }
