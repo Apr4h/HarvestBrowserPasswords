@@ -10,11 +10,11 @@ namespace HarvestBrowserPasswords
 
         public class Rootobject
         {
-            public int nextId { get; set; }
-            public Login[] logins { get; set; }
-            public int version { get; set; }
-            public object[] potentiallyVulnerablePasswords { get; set; }
-            public Dismissedbreachalertsbyloginguid dismissedBreachAlertsByLoginGUID { get; set; }
+            public int NextId { get; set; }
+            public Login[] Logins { get; set; }
+            public int Version { get; set; }
+            public object[] PotentiallyVulnerablePasswords { get; set; }
+            public Dismissedbreachalertsbyloginguid DismissedBreachAlertsByLoginGUID { get; set; }
         }
 
         public class Dismissedbreachalertsbyloginguid
@@ -23,20 +23,20 @@ namespace HarvestBrowserPasswords
 
         public class Login
         {
-            public int id { get; set; }
-            public string hostname { get; set; }
-            public string httpRealm { get; set; }
-            public string formSubmitURL { get; set; }
-            public string usernameField { get; set; }
-            public string passwordField { get; set; }
-            public string encryptedUsername { get; set; }
-            public string encryptedPassword { get; set; }
-            public string guid { get; set; }
-            public int encType { get; set; }
-            public long timeCreated { get; set; }
-            public long timeLastUsed { get; set; }
-            public long timePasswordChanged { get; set; }
-            public int timesUsed { get; set; }
+            public int Id { get; set; }
+            public string Hostname { get; set; }
+            public string HttpRealm { get; set; }
+            public string FormSubmitURL { get; set; }
+            public string UsernameField { get; set; }
+            public string PasswordField { get; set; }
+            public string EncryptedUsername { get; set; }
+            public string EncryptedPassword { get; set; }
+            public string Guid { get; set; }
+            public int EncType { get; set; }
+            public long TimeCreated { get; set; }
+            public long TimeLastUsed { get; set; }
+            public long TimePasswordChanged { get; set; }
+            public int TimesUsed { get; set; }
         }
     }
 }
