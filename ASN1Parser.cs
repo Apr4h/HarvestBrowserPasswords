@@ -32,9 +32,7 @@ namespace HarvestBrowserPasswords
         }
 
         public bool finished = false;
-
         public byte[] Asn1ByteArray { get; set; }
-
         public byte[] EntrySalt { get; set; }
         public byte[] CipherText { get; set; }
 
