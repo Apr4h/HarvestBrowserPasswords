@@ -16,11 +16,17 @@ namespace HarvestBrowserPasswords
             //Get username of current user account
             string userAccountName = GetCurrentUser();
 
-            //Parse command line arguments
-            if (args.Contains("-v"))
+            //TODO: Implement better command-line parsing with NuGet CommandLineParser
+            //Set Master password for Firefox logins
+            /*if(args.Contains("-p"))
             {
-                
+                string masterPassword = <some regex with args -p???>
             }
+            else:
+            {
+                string masterPassword = ""
+            }*/
+            //Parse command line arguments
             if (args.Contains("-a"))
             {
                 GetChromePasswords(userAccountName);
@@ -95,16 +101,6 @@ namespace HarvestBrowserPasswords
             foreach (string profile in FindFirefoxProfiles(userAccountName))
             {
                 FirefoxDatabaseDecryptor decryptor = new FirefoxDatabaseDecryptor(profile);
-
-                //Conduct Password check
-                Console.ForegroundColor = ConsoleColor.Yellow;
-
-                Console.WriteLine($"Cleartext Password: {Encoding.ASCII.GetString(decryptor.DecryptedPasswordCheck)}");
-                //Decrypt 3DES key
-                Console.WriteLine($"3DES key:           {BitConverter.ToString(decryptor.Decrypted3DESKey)}");
-                //Decrypt Logins
-
-                Console.ResetColor();
             }
         }
 
@@ -151,12 +147,12 @@ namespace HarvestBrowserPasswords
             Console.WriteLine("Help Message for HarvestBrowserPasswords.exe");
             Console.WriteLine($"Usage: HarvestBrowserPasswords.exe <options>");
             Console.WriteLine("Options:");
-            Console.WriteLine($"-h    Help                display this help message");
-            Console.WriteLine($"-g    Google Chrome       extract Google Chrome passwords");
-            Console.WriteLine($"-f    Firefox             extract Firefox passwords");
-            Console.WriteLine($"-a    All Browsers        extract passwords from all browsers");
-            Console.WriteLine($"-v    Verbose             write verbose output to console");
-            Console.WriteLine($"-c    CSV                 write output to csv file");
+            Console.WriteLine($"-h                  Help                display this help message");
+            Console.WriteLine($"-g                  Google Chrome       extract Google Chrome passwords");
+            Console.WriteLine($"-f                  Firefox             extract Firefox passwords");
+            Console.WriteLine($"-a                  All Browsers        extract passwords from all browsers");
+            Console.WriteLine($"-p \"<password>\"   Password            (optional) specify master password for Firefox logins");
+            Console.WriteLine($"-c                  CSV                 write output to csv file");
         }
     }  
 }

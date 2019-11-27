@@ -5,16 +5,8 @@ using System.Text;
 
 namespace HarvestBrowserPasswords
 {
-    /// <summary>
-    /// Takes a ByteArray and recursively parses TLV structure for a small range of ASN types.
-    /// Minimal atm, solely for extracting/decrypting creds from Mozilla databases
-    /// </summary>
-    /// <param name="item2Bytes"></param>
-    class ASN1Parser
+    class ASN1
     {
-        //TODO: Bin this implementation and convert nested classes to json for more accurate parsing of the whole data structure
-
-        //http://luca[.]ntop.org/Teaching/Appunti/asn1.html Section 2.3 Table 1 lists some ASN types
         enum ASN1Types
         {
             SEQUENCE = 0x30,
@@ -24,19 +16,18 @@ namespace HarvestBrowserPasswords
             NULL = 5
         }
 
-        public ASN1Parser(byte[] item2Bytes)
-        {
-            this.Asn1ByteArray = item2Bytes;
+        public Sequence RootSequence { get; set; }
+        public byte[] Asn1ByteArray { get; set; }
+        bool finished = false;
 
-            ParseTLV(0);
+        public ASN1(byte[] asn1Data)
+        {
+            Asn1ByteArray = asn1Data;
+            RootSequence = new Sequence();
+            ParseTLV(RootSequence, 0);
         }
 
-        public bool finished = false;
-        public byte[] Asn1ByteArray { get; set; }
-        public byte[] EntrySalt { get; set; }
-        public byte[] CipherText { get; set; }
-
-        public void ParseTLV(int index)
+        public void ParseTLV(Sequence sequenceCurrent, int index)
         {
             //store the type value 
             int i = index;
@@ -51,90 +42,52 @@ namespace HarvestBrowserPasswords
             //Increment the index to the value field
             i += lengthForm;
 
-            //Check values
+            //Check the type value and store each TLV's contents in the relevant sequence object`
             if (type == (int)ASN1Types.SEQUENCE)
             {
-                //DEBUG
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("DEBUG");
-                Console.WriteLine("SEQUENCE FOUND");
-                Console.WriteLine("INDEX = {0}", i - 2);
-                Console.WriteLine("LENGTH = {0}", length);
-                Console.WriteLine("LENGTHFORM = {0}", lengthForm);
-                Console.ResetColor();
+                //Create a temporary index value for the next recursive function call into this sequence
                 int tempIndex = i;
+                Sequence sequenceNew = new Sequence();
+                sequenceCurrent.Sequences.Add(sequenceNew);
 
-                //Yay recursion
-                ParseTLV(i);
+                ParseTLV(sequenceNew, i);
+                
+                //Reset index to correct position after each recursion
                 i += tempIndex + length;
             }
             else if (type == (int)ASN1Types.OBJECTIDENTIFIER)
             {
                 byte[] tmpArray = new byte[length];
 
-                for (int j = 0; j < length; j++)
-                {
-                    tmpArray[j] = Asn1ByteArray[i + j];
-                }
+                Buffer.BlockCopy(Asn1ByteArray, i, tmpArray, 0, length);
 
-                //DEBUG
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("DEBUG");
-                Console.WriteLine("OBJECTIDENTIFIER FOUND");
-                Console.WriteLine("INDEX = {0}", i - 2);
-                Console.WriteLine("LENGTH = {0}", length);
-                Console.WriteLine("LENGTHFORM = {0}", lengthForm);
-                Console.WriteLine($"OBJECTID = {BitConverter.ToString(tmpArray)}");
-                //Check that OID == 'pbeWithSha1AndTripleDES-CBC(3)'  
+                sequenceCurrent.ObjectIdentifiers.Add(tmpArray);
+
                 i += length;
-
             }
             else if (type == (int)ASN1Types.OCTETSTRING)
             {
-                //DEBUG
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("DEBUG");
-                Console.WriteLine("OCTETSTRING FOUND");
-                Console.WriteLine("INDEX = {0}", i - 2);
-                Console.WriteLine("LENGTH = {0}", length);
-                Console.WriteLine("LENGTHFORM = {0}", lengthForm);
-
-
                 byte[] tmpArray = new byte[length];
 
-                //Copy OCTETSTRING value into 
-                for (int j = 0; j < length; j++)
-                {
-                    tmpArray[j] = Asn1ByteArray[i + j];
-                }
+                Buffer.BlockCopy(Asn1ByteArray, i, tmpArray, 0, length);
 
-                //Set entrySalt first, then encryptedValue
-                if (EntrySalt == null)
-                {
-                    this.EntrySalt = tmpArray;
-
-                    //DEBUG
-                    Console.WriteLine($"ENTRYSALT = {BitConverter.ToString(EntrySalt)}");
-                }
-                else
-                {
-                    this.CipherText = tmpArray;
-
-                    //DEBUG
-                    Console.WriteLine($"ENCRYPTEDVALUE = {BitConverter.ToString(CipherText)}");
-                    Console.ResetColor();
-                }
+                sequenceCurrent.OctetStrings.Add(tmpArray);
 
                 i += length;
             }
             else if (type == (int)ASN1Types.INTEGER)
             {
-                //Don't care about these values. Move index to the start of the next TLV 
-                i += length;
+                byte[] tmpArray = new byte[length];
+
+                Buffer.BlockCopy(Asn1ByteArray, i, tmpArray, 0, length);
+
+                sequenceCurrent.Integers.Add(tmpArray);
+
+                i += 1;
             }
             else if (type == (int)ASN1Types.NULL)
             {
-                //Contents octets are empty. 
+                //'Contents' octets are empty. 
                 //If BER encoded and length octets are in long form, increment 1 additional byte to next TLV. If DER encoded, index is already at next TLV
                 if (lengthForm > 1)
                 {
@@ -151,7 +104,7 @@ namespace HarvestBrowserPasswords
             //But first, check that we haven't hit the end of the ASN encoded data
             if (i < Asn1ByteArray.Length && finished == false)
             {
-                ParseTLV(i);
+                ParseTLV(sequenceCurrent, i);
             }
             else
             {
@@ -187,13 +140,6 @@ namespace HarvestBrowserPasswords
             if (longFormLength > 1) //Set to 1 if length value is in short form
             {
 
-                //DEBUG
-                Console.ForegroundColor = ConsoleColor.Magenta;
-                Console.WriteLine("DEBUG");
-                Console.WriteLine("LONG FORM LENGTH TRIGGERED");
-                Console.WriteLine($"INDEX = {index}");
-                Console.WriteLine($"longFormLength = {longFormLength}");
-
                 //Create new bytearray to store long form length value
                 byte[] longFormBytes = new byte[longFormLength];
 
@@ -221,5 +167,21 @@ namespace HarvestBrowserPasswords
                 return (int)length;
             }
         }
+
+        public class Sequence
+        {
+            public List<Sequence> Sequences { get; set; }
+            public List<byte[]> Integers { get; set; }
+            public List<byte[]> OctetStrings { get; set; }
+            public List<byte[]> ObjectIdentifiers { get; set; }
+
+            public Sequence()
+            {
+                Sequences = new List<Sequence>();
+                Integers = new List<byte[]>();
+                OctetStrings = new List<byte[]>();
+                ObjectIdentifiers = new List<byte[]>();
+            }
+        }    
     }
 }
