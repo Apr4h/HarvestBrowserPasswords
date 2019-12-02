@@ -63,6 +63,7 @@ namespace HarvestBrowserPasswords
                 string loginDataFile = chromeProfile + @"\Login Data";
                 if (File.Exists(loginDataFile))
                 {
+                    Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine($"[+] Found Chrome credential database for user: {userAccountName}");
                     new ChromeDatabaseDecryptor(loginDataFile);
                 }
@@ -121,7 +122,9 @@ namespace HarvestBrowserPasswords
                 foreach (string directory in roamingProfiles)
                 {
                     profileDirectories.Add(directory);
+                    Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine($"[+] Found Firefox Profile at {directory}");
+                    Console.ResetColor();
                 }
             }
 
@@ -137,7 +140,9 @@ namespace HarvestBrowserPasswords
             int index = userAccountSamCompatible.IndexOf("\\", 0, userAccountSamCompatible.Length) + 1;
             string userAccountName = userAccountSamCompatible.Substring(index);
 
+            Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine($"[*] Running As: {userAccountSamCompatible}");
+            Console.ResetColor();
 
             return userAccountName;
         }

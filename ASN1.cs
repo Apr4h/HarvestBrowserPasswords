@@ -112,7 +112,6 @@ namespace HarvestBrowserPasswords
             }
         }
 
-
         public int CheckLenthForm(byte length)
         {
             if ((length & 0x80) > 0) //Bit 8 of first octet has value 1 and bits 7-1 give number of additional length octets
@@ -144,7 +143,7 @@ namespace HarvestBrowserPasswords
                 byte[] longFormBytes = new byte[longFormLength];
 
                 //Copy length bytes from full byte array for conversion
-                for (int i = 1; i < longFormLength + 1; i++)
+                for (int i = 0; i < longFormLength + 1; i++)
                 {
                     longFormBytes[i] = Asn1ByteArray[index + i];
                 }
