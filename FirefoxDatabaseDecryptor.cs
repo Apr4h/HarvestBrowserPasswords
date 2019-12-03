@@ -26,11 +26,11 @@ namespace HarvestBrowserPasswords
         public byte[] CipherTextLoginData       { get; set; }
         public byte[] DecryptedLoginData        { get; set; }
 
-        public FirefoxDatabaseDecryptor(string profile)
+        public FirefoxDatabaseDecryptor(string profile, string password)
         {
             ProfileDir = profile;
             Key4dbpath = ProfileDir + @"\key4.db";
-            MasterPassword = "";
+            MasterPassword = password;
 
             //Check profile for key4 database before attempting decryption
             if (File.Exists(Key4dbpath))

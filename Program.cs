@@ -5,44 +5,71 @@ using System.Management;
 using System.Security.Principal;
 using System.Text;
 using System.IO;
+using CommandLine;
 
 namespace HarvestBrowserPasswords
 {
     class Program
     {
+        class Options
+        {
+            [Option('c', "chrome", HelpText = "Locate and attempt decryption of Google Chrome logins")]
+            public bool Chrome { get; set; }
 
+            [Option('f', "firefox", HelpText = "Locate and attempt decryption of Mozilla Firefox logins")]
+            public bool Firefox { get; set; }
+
+            [Option('a', "all", HelpText = "Locate and attempt decryption of Google Chrome and Mozilla Firefox logins")]
+            public bool All { get; set; }
+
+            [Option('p', "password", HelpText = "Master password for Mozilla Firefox Logins")]
+            public string Password { get; set; }
+
+            [Option('o', "outfile", HelpText = "write output to csv file")]
+            public string Outfile { get; set; }
+
+            public Options()
+            {
+                Chrome = false;
+                Firefox = false;
+                All = false;
+                Password = "";
+                Outfile = "";
+            }
+            
+        }
+        
         static void Main(string[] args)
         {
             //Get username of current user account
             string userAccountName = GetCurrentUser();
 
-            //TODO: Implement better command-line parsing with NuGet CommandLineParser
-            //Set Master password for Firefox logins
-            /*if(args.Contains("-p"))
-            {
-                string masterPassword = <some regex with args -p???>
-            }
-            else:
-            {
-                string masterPassword = ""
-            }*/
-            //Parse command line arguments
-            if (args.Contains("-a"))
+            Options opts = new Options();
+
+            var result = Parser.Default.ParseArguments<Options>(args)
+                .WithParsed(parsed => opts = parsed)
+                .WithNotParsed(errors => Console.WriteLine($"Not parsed: {errors}"));
+
+            if (opts.All)
             {
                 GetChromePasswords(userAccountName);
                 GetFirefoxPasswords(userAccountName);
             }
-            else if (args.Contains("-g"))
+            else if (opts.Chrome)
             {
                 GetChromePasswords(userAccountName);
             }
-            else if (args.Contains("-f"))
+            else if (opts.Firefox)
             {
-                GetFirefoxPasswords(userAccountName);
-            }
-            else
-            {
-                DisplayHelpMessage();
+                if (opts.Password.Equals(null))
+                {
+                    GetFirefoxPasswords(userAccountName);
+                }
+                else
+                {
+                    GetFirefoxPasswords(userAccountName, opts.Password);
+                }
+                
             }
         }
 
@@ -99,9 +126,20 @@ namespace HarvestBrowserPasswords
 
         public static void GetFirefoxPasswords(string userAccountName)
         {
+            string masterPassword = "";
+
             foreach (string profile in FindFirefoxProfiles(userAccountName))
             {
-                FirefoxDatabaseDecryptor decryptor = new FirefoxDatabaseDecryptor(profile);
+                FirefoxDatabaseDecryptor decryptor = new FirefoxDatabaseDecryptor(profile, masterPassword);
+            }
+        }
+
+        //Overload for case where master password is set
+        public static void GetFirefoxPasswords(string userAccountName, string masterPassword)
+        {
+            foreach (string profile in FindFirefoxProfiles(userAccountName))
+            {
+                FirefoxDatabaseDecryptor decryptor = new FirefoxDatabaseDecryptor(profile, masterPassword);
             }
         }
 
@@ -145,19 +183,6 @@ namespace HarvestBrowserPasswords
             Console.ResetColor();
 
             return userAccountName;
-        }
-
-        public static void DisplayHelpMessage()
-        {
-            Console.WriteLine("Help Message for HarvestBrowserPasswords.exe");
-            Console.WriteLine($"Usage: HarvestBrowserPasswords.exe <options>");
-            Console.WriteLine("Options:");
-            Console.WriteLine($"-h                  Help                display this help message");
-            Console.WriteLine($"-g                  Google Chrome       extract Google Chrome passwords");
-            Console.WriteLine($"-f                  Firefox             extract Firefox passwords");
-            Console.WriteLine($"-a                  All Browsers        extract passwords from all browsers");
-            Console.WriteLine($"-p \"<password>\"   Password            (optional) specify master password for Firefox logins");
-            Console.WriteLine($"-c                  CSV                 write output to csv file");
         }
     }  
 }
