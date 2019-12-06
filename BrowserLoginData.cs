@@ -5,7 +5,7 @@ using System.Text;
 
 namespace HarvestBrowserPasswords
 {
-    class BrowserLoginData
+    public class BrowserLoginData
     {
         public string FormSubmitUrl { get; set; }
         public string Username { get; set; }

