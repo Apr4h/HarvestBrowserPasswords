@@ -3,9 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Management;
 using System.Security.Principal;
-using System.Text;
 
 namespace HarvestBrowserPasswords
 {
@@ -42,10 +40,6 @@ namespace HarvestBrowserPasswords
             else if (opts.Firefox)
             {
                 loginDataList = (loginDataList.Concat(GetFirefoxPasswords(userAccountName, opts.Password))).ToList();
-            }
-            else if (opts.Help)
-            {
-                PrintHelpToConsole();
             }
             else 
             {
