@@ -6,10 +6,11 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("HarvestBrowserPasswords")]
-[assembly: AssemblyDescription("A command-line tool for finding and decrypting login data stored locally by web browsers.")]
+[assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Apr4h")]
+[assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("HarvestBrowserPasswords")]
+[assembly: AssemblyCopyright("Copyright ©  2019")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

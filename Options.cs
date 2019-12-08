@@ -23,9 +23,6 @@ namespace HarvestBrowserPasswords
         [Option('o', "outfile", HelpText = "write output to csv file")]
         public string Outfile { get; set; }
 
-        [Option("help", HelpText = "Display help message")]
-        public bool Help { get; set; }
-
         public Options()
         {
             Chrome = false;
@@ -33,7 +30,6 @@ namespace HarvestBrowserPasswords
             All = false;
             Password = "";
             Outfile = "";
-            Help = false;
         }
     }
 }
