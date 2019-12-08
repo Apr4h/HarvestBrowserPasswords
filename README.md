@@ -1,26 +1,22 @@
 # HarvestBrowserPasswords
-A Windows tool for extracting credentials locally stored by Google Chrome and Mozilla Firefox
+A Windows tool for extracting credentials locally stored by Google Chrome and Mozilla Firefox web browsers
 
 Decrypts Google Chrome passwords for the currently logged-on user by locating "Login Data" database files and using DPAPI to decrypt passwords
 
-Decrypts Mozilla Firefox passwords for all available profiles by locating 'key4.db' databases and 'logins.json' files for 3DES decryption. Supports master password decryption and brute-forcing if enabled.
+Decrypts Mozilla Firefox passwords for all available profiles by locating 'key4.db' databases and 'logins.json' files for 3DES decryption. Supports decryption using a master password using the `-p` option if master password is known.
 
 ## Usage
 `HarvestBrowserPasswords.exe <options>`
 
-## Options
--h                  Display help message
+## Command Line Options
+  -c, --chrome      Locate and decrypt Google Chrome logins
 
--g                  Find and decrypt Google Chrome Passwords
+  -f, --firefox     Locate and decrypt Mozilla Firefox logins
 
--f                  Find and decrypt Mozilla Firefox passwords
+  -a, --all         Locate and decrypt Google Chrome and Mozilla Firefox logins
 
--a                  Find and decrypt all (chrome and Firefox) passwords
+  -p, --password    (Optional) Master password for Mozilla Firefox Logins
 
--p                  Specify master password if set
+  -o, --outfile     Write output to csv
 
--b                  Brute-force master password if set
-
--w                  Specify wordlist for master password brute-force
-
--v                  Verbose output
+  --help            Display help message
