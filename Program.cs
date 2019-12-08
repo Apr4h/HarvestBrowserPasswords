@@ -198,9 +198,6 @@ namespace HarvestBrowserPasswords
 
         private static void PrintHelpToConsole()
         {
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("HarvestBrowserPasswords.exe v1.0\n");
-
             Console.ForegroundColor = ConsoleColor.White;
             Console.WriteLine("OPTIONS:");
             Console.WriteLine("  -c, --chrome       Locate and decrypt Google Chrome logins\n");
