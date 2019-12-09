@@ -20,10 +20,14 @@ namespace HarvestBrowserPasswords
 
             Options opts = new Options();
 
+            var parser = new Parser(with => with.HelpWriter = null);
+
             //Parse command line arguments
-            var result = Parser.Default.ParseArguments<Options>(args)
+            var result = parser.ParseArguments<Options>(args)
                 .WithParsed(parsed => opts = parsed)
                 .WithNotParsed(errors => PrintHelpToConsole());
+
+            parser.Dispose();
 
             List<BrowserLoginData> loginDataList = new List<BrowserLoginData>();
 
@@ -41,7 +45,7 @@ namespace HarvestBrowserPasswords
             {
                 loginDataList = (loginDataList.Concat(GetFirefoxPasswords(userAccountName, opts.Password))).ToList();
             }
-            else 
+            else if (opts.Help)
             {
                 PrintHelpToConsole();
             }
