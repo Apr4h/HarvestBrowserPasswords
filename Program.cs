@@ -91,6 +91,12 @@ namespace HarvestBrowserPasswords
 
                     loginDataList = (loginDataList.Concat(decryptor.ChromeLoginDataList)).ToList();
                 }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"[-] No credential database found in chrome profile {chromeProfile}");
+                    Console.ResetColor();
+                }
             }
 
             return loginDataList;
@@ -133,8 +139,16 @@ namespace HarvestBrowserPasswords
             {
                 FirefoxDatabaseDecryptor decryptor = new FirefoxDatabaseDecryptor(profile, masterPassword);
 
-                //Take the list of logins from this decryptor and add them to the total list of logins
-                loginDataList = (loginDataList.Concat(decryptor.FirefoxLoginDataList)).ToList();
+                try
+                {
+                    //Take the list of logins from this decryptor and add them to the total list of logins
+                    loginDataList = (loginDataList.Concat(decryptor.FirefoxLoginDataList)).ToList();
+                }
+                catch (ArgumentNullException)
+                {
+                    //ArgumentNullException will be thrown when no key4.db file exists in a profile directory
+                }
+                
             }
 
             return loginDataList;

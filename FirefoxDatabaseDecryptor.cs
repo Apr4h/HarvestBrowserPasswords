@@ -90,6 +90,12 @@ namespace HarvestBrowserPasswords
                     Console.ResetColor();
                 }
             }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"[-] No credential database found for Firefox profile: {ProfileDir}");
+                Console.ResetColor();
+            }
         }
 
         // read logins.json file and deserialize the JSON into FirefoxLoginsJSON class
