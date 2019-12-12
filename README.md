@@ -11,14 +11,16 @@ A compiled standalone executable is available [here](https://github.com/Apr4h/Ha
 `HarvestBrowserPasswords.exe <options>`
 
 ## Command Line Options
-  -c, --chrome      Locate and decrypt Google Chrome logins
+```
+-c, --chrome       Locate and decrypt Google Chrome logins
 
-  -f, --firefox     Locate and decrypt Mozilla Firefox logins
+-f, --firefox      Locate and decrypt Mozilla Firefox logins
 
-  -a, --all         Locate and decrypt Google Chrome and Mozilla Firefox logins
+-a, --all          Locate and decrypt Google Chrome and Mozilla Firefox logins
 
-  -p, --password    (Optional) Master password for Mozilla Firefox Logins
+-p, --password     (Optional) Master password for Mozilla Firefox Logins
 
-  -o, --outfile     Write output to csv
+-o, --outfile      Write output to csv
 
-  --help            Display help message
+--help             Display help message
+```
