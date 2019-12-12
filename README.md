@@ -5,6 +5,8 @@ Decrypts Google Chrome passwords for the currently logged-on user by locating "L
 
 Decrypts Mozilla Firefox passwords for all available profiles by locating 'key4.db' databases and 'logins.json' files for 3DES decryption. Supports decryption using a master password using the `-p` option if master password is known.
 
+A compiled standalone executable is available [here](https://github.com/Apr4h/HarvestBrowserPasswords/releases)
+
 ## Usage
 `HarvestBrowserPasswords.exe <options>`
 
