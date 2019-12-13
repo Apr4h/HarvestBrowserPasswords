@@ -30,6 +30,19 @@ namespace HarvestBrowserPasswords
             Password = "";
             Outfile = "";
             Help = false;
+
+        }
+
+        public bool CheckIfNoArgs()
+        {
+            if ((Chrome.Equals(false)) && (Firefox.Equals(false))&& (All.Equals(false)) && (Help.Equals(false)))
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
     }
 }

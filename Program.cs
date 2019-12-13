@@ -24,8 +24,7 @@ namespace HarvestBrowserPasswords
 
             //Parse command line arguments
             var result = parser.ParseArguments<Options>(args)
-                .WithParsed(parsed => opts = parsed)
-                .WithNotParsed(errors => PrintHelpToConsole());
+                .WithParsed(parsed => opts = parsed);
 
             parser.Dispose();
 
@@ -46,6 +45,11 @@ namespace HarvestBrowserPasswords
                 loginDataList = (loginDataList.Concat(GetFirefoxPasswords(userAccountName, opts.Password))).ToList();
             }
             else if (opts.Help)
+            {
+                PrintHelpToConsole();
+            }
+            //Check for case where no arguments were entered
+            else if (opts.CheckIfNoArgs())
             {
                 PrintHelpToConsole();
             }
@@ -76,7 +80,7 @@ namespace HarvestBrowserPasswords
       
         public static List<BrowserLoginData> GetChromePasswords(string userAccountName)
         {
-            List<string> chromeProfiles = FindChromeProfiles(userAccountName);
+            List<string> chromeProfiles = FindChromeProfiles();
 
             List<BrowserLoginData> loginDataList = new List<BrowserLoginData>();
 
@@ -102,17 +106,13 @@ namespace HarvestBrowserPasswords
             return loginDataList;
         }
 
-        public static List<string> FindChromeProfiles(string userAccountName)
+        public static List<string> FindChromeProfiles()
         {
-            string chromeDirectory = $"C:\\Users\\{userAccountName}\\AppData\\Local\\Google\\Chrome\\User Data";
+            string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string chromeDirectory = localAppData + @"\Google\Chrome\User Data";
+         
             List<string> profileDirectories = new List<string>();
 
-            foreach (string directory in profileDirectories)
-            {
-                Console.WriteLine(directory);
-            }
-
-            if (Directory.Exists(chromeDirectory))
             if (Directory.Exists(chromeDirectory))
             {
                 //Add default profile location once existence of chrome directory is confirmed
