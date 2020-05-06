@@ -29,31 +29,48 @@ namespace HarvestBrowserPasswords
             parser.Dispose();
 
             List<BrowserLoginData> loginDataList = new List<BrowserLoginData>();
+            try
+            {
+                //Check command line arguments
+                if (opts.All)
+                {
+                    loginDataList = (loginDataList.Concat(GetChromePasswords(userAccountName))).ToList();
+                    loginDataList = (loginDataList.Concat(GetFirefoxPasswords(userAccountName, opts.Password))).ToList();
+                }
+                else if (opts.Chrome)
+                {
+                    loginDataList = (loginDataList.Concat(GetChromePasswords(userAccountName))).ToList();
+                }
+                else if (opts.Firefox)
+                {
+                    loginDataList = (loginDataList.Concat(GetFirefoxPasswords(userAccountName, opts.Password))).ToList();
+                }
+                else if (opts.Help)
+                {
+                    PrintHelpToConsole();
+                }
+                //Check for case where no arguments were entered
+                else if (opts.CheckIfNoArgs())
+                {
+                    PrintHelpToConsole();
+                }
+            }
+            catch (Exception e)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
 
-            //Check command line arguments
-            if (opts.All)
-            {
-                loginDataList = (loginDataList.Concat(GetChromePasswords(userAccountName))).ToList();
-                loginDataList = (loginDataList.Concat(GetFirefoxPasswords(userAccountName, opts.Password))).ToList();
+                if (e.InnerException != null)
+                {
+                    
+                    Console.WriteLine($"[-] {e.InnerException.Message}");
+                }
+                else
+                {
+                    Console.WriteLine($"[-] {e.Message}");
+                }
+                Console.ResetColor();
             }
-            else if (opts.Chrome)
-            {
-                loginDataList = (loginDataList.Concat(GetChromePasswords(userAccountName))).ToList();
-            }
-            else if (opts.Firefox)
-            {
-                loginDataList = (loginDataList.Concat(GetFirefoxPasswords(userAccountName, opts.Password))).ToList();
-            }
-            else if (opts.Help)
-            {
-                PrintHelpToConsole();
-            }
-            //Check for case where no arguments were entered
-            else if (opts.CheckIfNoArgs())
-            {
-                PrintHelpToConsole();
-            }
-
+           
             //Output all decrypted logins
             if(loginDataList.Count > 0)
             {
@@ -149,6 +166,8 @@ namespace HarvestBrowserPasswords
                 catch (ArgumentNullException)
                 {
                     //ArgumentNullException will be thrown when no key4.db file exists in a profile directory
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"[-] Could not find key4.db for profile: {profile}");
                 }
                 
             }

